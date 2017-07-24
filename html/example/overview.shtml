@@ -1,0 +1,76 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_example.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+            <h2>Requirements</h2>
+            <ul>
+                <li>Use this site as a test-bed for different technology choices.</li>
+                <li>Host a primarily static website.</li>
+                <li>Use the server to merging headers and footers with the body of the HTML pages. The merge operation
+                    may be migrated to a build step later, but initially it will be done as a server side include.
+                </li>
+                <li>Provide a mechanism to receive a lead submittal and email the sales distribution list.</li>
+                <li>Provide an easy/flexible way to update the infrastructure.</li>
+                <li>Provide a quick way to push new HTML content.</li>
+                <li>Cheap &ndash; keep the monthly infrastructure spend below $20/month.</li>
+            </ul>
+
+            <h2>Tech Choices/Stack</h2>
+            <h3>Git/GitHub</h3>
+            <p>In order to handle the update of content we leverage git sparse checkouts (which only checkouts the
+                <strong>htdocs</strong> subfolder of the Git repository). We can then leverage githubs webhook to
+                trigger website updates.</p>
+
+            <p>Note: Since this project is going to be hosted in a public repo, there is no need to embed github
+                authentication in the docker image (the image can download via https).</p>
+
+            <h3>Apache</h3>
+            <p>Apache HTTPD is ubiquitous and has a much lighter memory footprint than most application servers and it
+                should be able to handle most of the requirements listed above.</p>
+
+            <h3>Docker</h3>
+            <p>Docker provides an easy way to build a local environment that mirrors the final deployment environment.
+                This is advantagous for two reasons:</p>
+            <ul>
+                <li>It reduces the time that would otherwise be necessary, to continuously build and deploy to a test
+                    environment.
+                </li>
+                <li>The final docker images are, an immutable deployment unit that can be pushed to production without
+                    modification.
+                </li>
+            </ul>
+
+            <h3>AWS</h3>
+            <p>As well as basic hosting (EC2) Amazon has other services/features we expect to leverage:</p>
+            <ul>
+                <li>ECR (Elastic container repository) &ndash; provides hosting for docker images.</li>
+                <li>ASG (Auto Scale Groups) &ndash; provides an easy way to handle instance (hardware) failures.</li>
+                <li>IAM Instance profiles &ndash; provides fine grained control over what services the instance can
+                    access. In the future we can leverage this to allow the instance to update/re-deploy itself.
+                </li>
+            </ul>
+
+            <h3>Terraform</h3>
+            <p>Terraform is an alternative to Amazon's CloudFormation service, both services allow the engineer to
+                implement "Infrastructure as Code". For this project we are using Terraform as we find it easier to
+                break the project in small manageable chunks (files)</p>
+
+
+            <h3>Core-OS</h3>
+            <p>One of the requirements listed above is "Cheap", as a result we plan to run the site with a small
+                hardware footprint. Core-OS is a lightweight Linux distro specifically designed for running Docker
+                containers, it has no extra frills, which makes it ideal for our purpose.</p>
+
+            <a href="/example/docker.shtml" class="button">Continue</a>
+
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->

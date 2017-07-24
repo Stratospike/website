@@ -1,0 +1,52 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_example.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+            <h2>Infrastructure as Code</h2>
+
+            <p>This site has been built following the Infrastructure as Code principal. The full source for both the
+                html content and the configuration that build the site can be found
+                <a href="https://github.com/Stratospike/website">here</a> on Github.</p>
+
+            <h3>AWS Account</h3>
+            <p>This site runs on Amazon AWS and the instructions assume it will be deployed to AWS,<br/>
+                however very little setup was applied to the AWS account, specifically</p>
+            <ul>
+                <li>A VPC is needed, however a VPC is created when you open a new AWS account.</li>
+                <li>Best practice is to create an IAM account to generate a set of AWS Access keys,
+                    however it's also possible to use the root account keys.
+                </li>
+                <li>An (SSH) key pair is needed to log into the instances.</li>
+            </ul>
+
+            <h3>Local Setup</h3>
+            <p>It is necessary to have a local workstation/laptop to build the docker images and execute Terraform.<br/>
+                This site gives setup instruction on how to configure the needed pieces.</p>
+
+            <h3>Deploying the site</h3>
+
+            <p>Once the pre-requisites have been met, the site can be deployed with the following commands:</p>
+            <code>
+                git clone https://github.com/Stratospike/website.git<br/>
+                cd website/terraform<br/>
+                terraform apply
+            </code>
+
+            <h3>DNS</h3>
+            <p>Finally a DNS entry (www.stratospike.com) is needed, however an AWS Elastic IP is used,
+                so this step only needs to be performed once.</p>
+
+
+            <a href="/example/overview.shtml" class="button">Continue</a>
+
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->

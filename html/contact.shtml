@@ -1,0 +1,37 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_contact.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+
+
+            <h2>Contact Us</h2>
+
+            <fieldset>
+                <legend>Your details</legend>
+                <form action="contact-send.php" method="post">
+                    <p><label for="name">Name:</label>
+                        <input name="name" id="name" value="" type="text" style="width: 300px"/></p>
+                    <p><label for="phone">Phone Number:</label>
+                        <input name="phone" id="phone" value="" type="text" style="width: 300px"/></p>
+                    <p><label for="email">Email:</label>
+                        <input name="email" id="email" value="" type="text" style="width: 500px"/></p>
+
+                    <p><label for="message">Message:</label>
+                        <textarea style="width: 500px" rows="11" name="message" id="message"></textarea></p>
+                    <p><input name="submit" style="margin-left: 150px;" class="formbutton" value="Send" type="submit"/>
+                    </p>
+                </form>
+            </fieldset>
+
+
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->

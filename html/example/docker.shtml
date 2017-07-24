@@ -1,0 +1,183 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_example.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+            <h2>Docker</h2>
+
+            <p>Docker provides a convenient way to develop locally and push to production.</p>
+            <p>Docker images are built locally, pushed to a repository running in AWS (ECR) then deployed onto the
+                production server.</p>
+
+            <h3>Install Docker Engine</h3>
+            <p>The first step is to install the docker engine, the stable version can be downloaded from
+                <a href="https://docs.docker.com/docker-for-mac/install">Docker</a>.<br/>
+                Accept all the defaults when installing the package.
+            </p>
+
+
+            <h3>Docker Image</h3>
+            <p>We could start with a "bare" image and install all the components we need, however for this project it
+                is probably easier to start with an image containing both Apache and PHP, then install the other
+                components we need. Therefore we will start by creating a simple Docker file:</p>
+
+            <code>FROM php:7.1-apache</code>
+
+            <p>The upstream image version is restricted to 7.1.x, this gives us control about when we want to
+                upgrade the major and minor versions, but allows us to take "patch" versions automatically.</p>
+
+            <h3>Server Side Includes</h3>
+            <p>Apache httpd has built in support for <a href="https://httpd.apache.org/docs/current/howto/ssi.html">Server
+                Side Includes</a>, however they are not enabled in this docker image, therefore we need to edit
+                apache2.conf to enable them.</p>
+            <p>We could just manually edit the file and add the modified version to the project. However, if we lose
+                the original version of the file, it would be difficult to identify the changes we applied.<br/>
+                Instead we will execute a sed in-place edit to change the line we need to modify:</p>
+
+            <code>
+                sed -e '/&lt;Directory \/var\/www\/&gt;/,/&lt;\/Directory&gt;/ s/Indexes FollowSymLinks/Indexes
+                FollowSymLinks Includes/' \<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;-i /etc/apache2/apache2.conf
+            </code>
+
+            <p>Additionally we need to add a symbolic link to load the include module:</p>
+
+            <code>
+                ln -s ../mods-available/include.load /etc/apache2/mods-enabled/include.load
+            </code>
+
+            <p>We add the commands to the DockerFile like this:</p>
+
+            <code>
+                FROM php:7.1-apache<br/>
+                <br/>
+                RUN sed -e '/&lt;Directory \/var\/www\/&gt;/,/&lt;\/Directory&gt;/ s/Indexes FollowSymLinks/Indexes
+                FollowSymLinks Includes/' \<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-i /etc/apache2/apache2.conf && \<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;ln -s ../mods-available/include.load /etc/apache2/mods-enabled/include.load
+            </code>
+
+            <p>The commands are chained together with the &amp;&amp; \ syntax so that we only get one additional
+                layer in the Docker image.</p>
+
+            <h3>Build and Test</h3>
+
+            <p>We can test this Dockerfile with the commands:</p>
+            <code>docker build -t stratospike-web:latest .</code>
+            <code>docker run --rm -ti stratospike-web:latest /bin/bash</code>
+            <p>The run command will start a shell which allows us to "poke around" the image to validate everything is
+                setup correctly. To develop HTML pages we use the following command:</p>
+            <code>
+                docker run --rm -p 80:80 -v $PWD/html:/var/www/html --name web stratospike-web:latest
+            </code>
+
+            <p>This allows us to edit the HTML files on our laptops and view them in a browser at http://localhost</p>
+
+            <table cellspacing="0">
+                <tr>
+                    <th>Argument</th>
+                    <th>Function</th>
+                </tr>
+                <tr>
+                    <td>--rm</td>
+                    <td>Removes the container when the httpd process terminates.</td>
+                </tr>
+                <tr>
+                    <td>-p 80:80</td>
+                    <td>Binds the container port to the host port.</td>
+                </tr>
+                <tr>
+                    <td>-v $PWD/html:&hellip;</td>
+                    <td>Exposes the local directory into the container.</td>
+                </tr>
+            </table>
+
+            <p>&nbsp;</p>
+
+            <h3>Install Git</h3>
+            <p>In order to install git into the docker image,
+                we need to add the following to the RUN command in the docker file:</p>
+
+            <code>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;apt-get update -y &amp;&amp; \<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;apt-get install -y git-core &amp;&amp; \<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rm -rf /var/lib/apt/lists/*</code>
+
+            <ul>
+                <li>The apt-get update is useful to ensure we are up to date with current packages in the distribution,
+                    it also downloads the package list which allows the install git-core command to complete
+                    successfully.
+                </li>
+                <li>We don&rsquo;t want the package list to be included in the final docker image so the downloaded
+                    lists are removed by the rm command.
+                </li>
+                <li>We continue to chain the commands together with the &amp;&amp; \ syntax.
+                </li>
+                <li>We can test this Dockerfile with the same commands as before.
+                </li>
+            </ul>
+
+
+            <h3>Website Content</h3>
+            <p>We need the (running) Docker instance to contain the website content. One option would be to fetch the
+                current content when the container starts up, however this could be problematic if the container is
+                unable to connect to Github.</p>
+            <p>Instead we will download the current content during the docker build and do an update (git pull) when the
+                container starts. This ensures that there is always some (possibly outdated) content available,
+                additionally we don't need to fetch the entire git repository each time a container starts.</p>
+
+            <h4>Sparse Checkout</h4>
+            <p>The git repository contains more content than we need to add to the Docker images, specifically we only
+                need the <strong>html</strong> sub-directory.</p>
+            <p>Git has a "sparse checkout" feature which allows us to set the content that we want to check out.
+                Unfortunately the command sequence is a little convoluted, as we need the local repository to exist in
+                order to set which sub-directories we want to check out:</p>
+            <code>
+                git init<br/>
+                git config core.sparseCheckout true<br/>
+                echo "html/*" > .git/info/sparse-checkout<br/>
+                git remote add -f origin https://github.com/Stratospike/website.git<br/>
+                git checkout master
+            </code>
+
+            <p>These commands are added to the Dockerfile so that the static content is added during each build.</p>
+
+            <p>CAUTION: Although git only checkouts out the specified files, it downloads the entire repository, which
+                may bloat the Docker images.</p>
+
+            <h4>Update on Startup</h4>
+
+            <p>The base Docker httpd image contains a script that is executed during container startup.
+                We add our own script, that performs the git pull and exec's the default script:</p>
+
+            <code>
+                #!/bin/sh<br/>
+                set -e<br/>
+                <br/>
+                ( cd /var/www ; git pull & )<br/>
+                <br/>
+                exec /usr/local/bin/apache2-foreground
+            </code>
+
+            <p>Note: The git pull is run in the background so that any problems do not affect the httpd process.</p>
+
+            <p>The Dockerfile is modified, to copy the script into the image and invoke the script when the container
+                starts:</p>
+
+            <code>
+                COPY image/script/init-website /usr/local/bin<br/>
+                CMD ["init-website"]
+            </code>
+
+            <a href="/example/aws-local-osx.shtml" class="button">Continue</a>
+
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->

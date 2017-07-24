@@ -1,0 +1,60 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_home.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+            <h2>Introduction to Stratospike</h2>
+
+            <p>Welcome to Stratospike, we specialize in integrating existing culture and processes,<br/>with the best
+                open source build and deployment technologies.</p>
+
+            <p>The mark of any good DevOps implementation is how widely it is adopted and there are three
+                core tenants that all good implementations share:</p>
+
+            <h3>Reproducibility</h3>
+
+            The root cause of many business problems is the lack of reproducibility:
+            <ul class="styledlist">
+                <li>Unpredictable deployment failures</li>
+                <li>Lack of agility / unwillingness to release often</li>
+                <li>Loss of knowledge due to staff turnover</li>
+            </ul>
+
+            <p>Automation is the ideal solution to all of these problems,
+                however automating <strong>everything</strong> may not be realistic.</p>
+
+            <h3>Visibility</h3>
+            <p>Keeping things simple, is usually the best option for smaller companies. However as companies grow, so
+                do the number of components in their infrastructure. With the extra components comes a need for more
+                visibility into many areas, including: showing the current state of the infrastructure, recent changes
+                including auditing records providing details on when, why and who made the change.</p>
+
+            <p>Historical metrics, including system performance, key business metrics and process
+                metrics, such as which modules cause the most test failures.</p>
+
+            <h3>Flexibility</h3>
+
+            <p>Many organisations struggle to maintain velocity as they try to introduce reproducibility, for two
+                reasons:</p>
+            <ul>
+                <li>Not enough visibility into either the development process and/or the deployment pipeline</li>
+                <li>Reproducibility is achieved through rigid processes and/or tooling</li>
+            </ul>
+
+            <p>In order to avoid these problems it critical to analyze where the choke points are and deliver solutions
+                that address the root cause of the problem, without introducing additional friction.</p>
+
+
+            <p>We can help:</p>
+            <a href="contact.shtml" class="button">Contact us</a>
+
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->

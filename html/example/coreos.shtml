@@ -1,0 +1,153 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_example.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+            <h2>CoreOS</h2>
+
+            <p>By using Docker and Terraform, we have purposefully tried to minimize the amount of setup required on the
+                EC2 instance, specifically we want to:</p>
+
+            <ul>
+                <li>Run the "stratospike-web" docker container.</li>
+                <li>Associate the instance with the Elastic IP address.</li>
+            </ul>
+
+            <h3>Complications</h3>
+            <p>In practice there are a few complications:</p>
+            <ul>
+                <li>We need to log into the ECR repository before we can download the docker image.</li>
+                <li>CoreOS doesn't have the AWS command line tools installed.</li>
+                <li>We don't want to install the AWS CLI tools on the CoreOS host.</li>
+                <li>Since we are running on a "nano" instance, it will take a couple of minutes to download the docker
+                    container.
+                </li>
+                <li>We don't want to associate the EIP until the container is running (well almost running)</li>
+            </ul>
+
+            <h3>Solution</h3>
+
+            <h4>Dockerized Tools</h4>
+            <p>When using docker it is not necessary to install tooling on the host system itself, instead we can launch
+                a container that contains the tools we need.<br/>
+                Specifically Mesosphere have packaged the
+                <a href="https://hub.docker.com/r/mesosphere/aws-cli/">AWS command line tools</a> for us.</p>
+            <p>When using a docker container, its good practice to pull the container first:</p>
+
+            <code>
+                docker pull mesosphere/aws-cli
+            </code>
+
+            <p>As we want to ensure that Docker image is available before using it, otherwise if we get a failure,
+                it more difficult to identify if the problem occured during the download or the execute of the
+                container.</p>
+
+            <h4>Meta-data</h4>
+
+            <p>As we initialize the instance we need to know:</p>
+            <ul>
+                <li>The instance-id of the machine.</li>
+                <li>What region its running in.</li>
+            </ul>
+
+            <p>Amazon provides this information via the meta-data service, we can access it with the following:</p>
+
+            <code>
+                REGION=`curl -s <br/>
+                &nbsp;&nbsp;http://169.254.169.254/latest/meta-data/placement/availability-zone |
+                grep -Eo "[^0-9]+[0-9]+"`<br/>
+                <br/>
+                INSTANCE_ID=`curl -s <br/>
+                &nbsp;&nbsp;http://169.254.169.254/latest/meta-data/instance-id`
+            </code>
+
+            <h4>Work Unit</h4>
+
+            <p>CoreOS has a concept of a "unit", which we can leverage to launch our application when the
+                instance starts. To do this we will break our application startup into two steps, a shell script to
+                prepare the machine and a docker run command which launches the container and open port 80 from the
+                container to the host/internet:</p>
+
+            <code>
+                docker run --rm -p 80:80 --name stratospike-web ${repository_url}
+            </code>
+
+            <p>The shell script needs to:</p>
+            <ul>
+                <li>Fetch the Region and Instance-id metadata.</li>
+                <li>Download the AWS tools container.</li>
+                <li>Use the tools to log into the ECR repository.</li>
+                <li>Download the "application" Docker images.</li>
+                <li>Associate the instance with the Elastic IP</li>
+            </ul>
+
+            <code>
+                #!/bin/bash -e<br/>
+                <br/>
+                REGION=`curl -s
+                http://169.254.169.254/latest/meta-data/placement/availability-zone | grep -Eo "[^0-9]+[0-9]+"`<br/>
+                INSTANCE_ID=`curl -s
+                http://169.254.169.254/latest/meta-data/instance-id`<br/>
+                <br/>
+                docker pull mesosphere/aws-cli<br/>
+                `docker run --rm mesosphere/aws-cli ecr get-login --region=$REGION
+                --no-include-email`<br/>
+                docker pull ${repository_url}<br/>
+                <br/>
+                docker run --rm -t mesosphere/aws-cli ec2 associate-address
+                --region=$REGION --allow-reassociation --allocation-id=${allocation_id} --instance-id=$INSTANCE_ID<br/>
+            </code>
+
+
+            <h4>Cloud Config</h4>
+
+            <p>The CoreOS configuration is packed into a single (cloud-config file):</p>
+
+            <code>
+                #cloud-config<br/>
+                coreos:<br/>
+                &nbsp;&nbsp;units:<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;- name: "web.service"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;command: "start"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content: |<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Unit]<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Description=Web Server Service<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After=docker.service<br/>
+                <br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Service]<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TimeoutStartSec=300<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ExecStartPre=/tmp/init-web<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ExecStart=/usr/bin/docker run --rm -p 80:80 --name
+                stratospike-web ${repository_url}<br/>
+                write_files:<br/>
+                &nbsp;&nbsp;- path: "/tmp/init-web"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;permissions: "0755"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;owner: "root"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;content: |<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ ** SHELL SCRIPT CONTENTS ** ]
+            </code>
+
+            <p>The <strong>write_files</strong> directive writes the contents of the shell script (omitted above) to:
+                /tmp/init-web</p>
+            <p>Then the web.service unit executes the shell script, waits up to 300 seconds for the script to
+                complete. Then executes the docker run command to launch the main container.</p>
+
+            <h4>User Data</h4>
+            <p>The cloud config is generated from a Terraform <a href="terraform.shtml#template">template</a>.
+                During the template rendering the tokens: ${repository_url} and ${allocation_id} are replaced with the
+                real values pulled from AWS.
+                The "user_data" of the launch configuration is updated with the final configuration, so that new
+                instances that are launched receive the configuration during boot.
+            </p>
+
+            <a href="/example.shtml" class="button">Done</a>
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->

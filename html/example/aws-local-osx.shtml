@@ -1,0 +1,92 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_example.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+            <h2>Local Environment Setup (OSX)</h2>
+
+            <p>Although this example uses Terraform to apply all AWS changes, sometimes it can be helpful
+                to have the AWS command line tools installed. Therefore we install the following tooling: python, pip,
+                terraform, AWS CLI tools.</p><p>Download:</p>
+
+            <ul>
+                <li>The terraform binary: <a href="https://www.terraform.io/downloads.html">https://www.terraform.io/downloads.html</a>
+                </li>
+                <li>The latest 3.x.x python installer: <a href="https://www.python.org/downloads/">https://www.python.org/downloads/</a>
+                </li>
+            </ul>
+
+            <p>Run the python installer, to install Python and PIP on your system.</p>
+
+            <p>Unpack the terraform zip file and copy the terraform binary to <strong>/usr/local/bin</strong></p>
+            <code>
+                unzip terraform_0.9.11_darwin_amd64.zip<br/>
+                chmod 755 terraform<br>
+                sudo mv terraform /usr/local/bin
+            </code>
+
+            <p>Install the python virtualenv package and the wrapper that allows the creation of new virtualenvs</p>
+            <code>
+                pip install virtualenv<br/>
+                pip install virtualenvwrapper<br/>
+                <br/>
+                mkdir ~/Envs<br/>
+            </code>
+
+            <p>Next locate the virtualenvwrapper.sh script, typically it is either:</p>
+
+            <ul>
+                <li>/usr/local/bin/virtualenvwrapper.sh</li>
+                <li>/Library/Frameworks/Python.framework/Versions/3.6/bin/virtualenvwrapper.sh</li>
+            </ul>
+
+            <p>Add the configuration for virtual environments to your ~/.profile</p>
+            <code>
+                export WORKON_HOME=~/Envs<br/>
+                $ source /usr/local/bin/virtualenvwrapper.sh
+            </code>
+
+            <p>You will need to re-source your profile:</p>
+
+            <code>
+                source ~/.profile
+            </code>
+
+            <p>Create a new "aws" virtual environment and install the command line tools into it:</p>
+
+            <code>
+                mkvirtualenv aws<br/>
+                pip install awscli
+            </code>
+
+            <p>Add the following lines to the very bottom of: ~/Envs/aws/bin/activate</p>
+
+            <code>
+                export AWS_ACCESS_KEY_ID="???"<br/>
+                export AWS_SECRET_ACCESS_KEY="???"
+            </code>
+
+            <p>Replace the ??? with the access keys for your AWS account.</p>
+
+            <p>With this setup, it is possible to open a new terminal window and execute:</p>
+            <code>
+                workon aws
+            </code>
+
+            <p>This makes both terraform and the AWS command lines tools available.<br/>
+                To test the setup, try listing the default security groups:</p>
+            <code>
+                aws ec2 describe-security-groups
+            </code>
+
+            <a href="/example/terraform.shtml" class="button">Continue</a>
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->

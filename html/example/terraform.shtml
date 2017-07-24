@@ -1,0 +1,338 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_example.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+            <h2>Terraform</h2>
+
+            <p>Terraform provides us with a way to build "Infrastructure as Code", in other words its possible to script
+                the entire infrastructure deployment. So that we can build/re-build an environment at will.<br/>
+                This avoids the need to memorize hundreds of setup steps and the inevitable mistakes that come with
+                manual processes.
+            </p>
+
+            <h3>Terraform basics</h3>
+            <p>When developing with Terraform, typically only two commands are needed:</p>
+            <code>terraform plan<br/>
+                terraform apply</code>
+            <p>The "plan" command, compares the "planned" deployment with the infrastructure that is currently deployed
+                and produces a report of all changes that need to be performed in order to "apply" the plan to the
+                infrastructure.<br/>
+                The "apply" command performs the same steps as "plan", then applies the plan creating,
+                updating and destroying infrastructure as necessary.</p>
+
+            <h4>Terraform State File</h4>
+            <p>After applying a plan, terraform writes out a state file: terraform.tfstate<br/>
+                This file contains the identity of all created resources, for example if Terraform starts an EC2
+                instance it
+                will record the instance-id in the state file. During subsequent executions terraform uses the state
+                file to identify which instance to modify.</p>
+
+            <h4>Terraform Configuration</h4>
+
+            <p>By default Terraform reads its configuration from all files ending with .tf in the current directory.<br>
+                The order of the files and the order of the directives inside the files is irrelevant.<br/>
+                Hence the project is typically structured to make it more logical/readable.
+            </p>
+            <h4>Getting Started</h4>
+            <p>
+                Create a new directory to contain the terraform configuration:</p>
+            <code>
+                mkdir terraform<br/>
+                cd terraform
+            </code>
+
+            <h3>AWS Provider</h3>
+            <p>Add a file provider.tf, containing the following:</p>
+
+            <code>
+                provider "aws" {<br/>
+                &nbsp;&nbsp;region = "us-west-2"<br/>
+                }
+            </code>
+
+            <p>This configuration allows Terraform to build AWS infrastructure, since the AWS access keys are not
+                provided they will be read from <a href="/example/aws-local-osx.shtml">environment variables</a>.
+                The region is defaulted to us-west-2, this default is used if the region is not specified when creating
+                specific resources.</p>
+
+            <h3>ECR Repository</h3>
+            <p>Add: ecr.tf</p>
+
+            <code>
+                resource "aws_ecr_repository" "stratospike_web" {<br/>
+                &nbsp;&nbsp;name = "stratospike-web"<br/>
+                }
+            </code>
+
+            <p>This creates a new docker (ECR) repository to contain the "stratospike-web" docker image.<br/>
+                New images can be uploaded to the repository using a docker push command.</p>
+
+            <h3>IAM Role</h3>
+
+            <p>Add: iam.tf</p>
+
+            <code>
+                resource "aws_iam_policy" "associate_address" {<br/>
+                &nbsp;&nbsp;name = "AssociateAddress"<br/>
+                &nbsp;&nbsp;path = "/"<br/>
+                &nbsp;&nbsp;description = "Allows EIP addresses to be associated."<br/>
+                &nbsp;&nbsp;policy = &lt;&lt;EOF<br/>
+                {<br/>
+                &nbsp;&nbsp;"Version": "2012-10-17",<br/>
+                &nbsp;&nbsp;"Statement": [<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Effect": "Allow",<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Action": [<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"ec2:AssociateAddress"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Resource": [<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"*"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Sid": ""<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+                &nbsp;&nbsp;]<br/>
+                }<br/>
+                EOF<br/>
+                }<br/>
+                <br/>
+                resource "aws_iam_role" "stratospike_web" {<br/>
+                &nbsp;&nbsp;name = "stratospike-web"<br/>
+                &nbsp;&nbsp;assume_role_policy = &lt;&lt;EOF<br/>
+                {<br/>
+                &nbsp;&nbsp;"Version": "2012-10-17",<br/>
+                &nbsp;&nbsp;"Statement": [<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;{<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Action": "sts:AssumeRole",<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Principal": {<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Service": "ec2.amazonaws.com"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Effect": "Allow",<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Sid": ""<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br/>
+                &nbsp;&nbsp;]<br/>
+                }<br/>
+                EOF<br/>
+                }<br/>
+                <br/>
+                resource "aws_iam_role_policy_attachment" "stratospike_web_attach_assoc" {<br/>
+                &nbsp;&nbsp;role = "${aws_iam_role.stratospike_web.name}"<br/>
+                &nbsp;&nbsp;policy_arn = "${aws_iam_policy.associate_address.arn}"<br/>
+                }<br/>
+                <br/>
+                resource "aws_iam_role_policy_attachment" "stratospike_web_attach_ecr" {<br/>
+                &nbsp;&nbsp;role = "${aws_iam_role.stratospike_web.name}"<br/>
+                &nbsp;&nbsp;policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"<br/>
+                }
+            </code>
+
+            <p>This creates a role, which can be "assumed" by a running EC2 instance in order to download docker images
+                from the ECR Repo.<br/>
+                The statements perform the following functions:</p>
+
+            <ol>
+                <li>Creates a policy that grants permission to assign and Elastic IP address (EIP) to an instance.</li>
+                <li>Creates the role and allows the EC2 service to use/assume the role.</li>
+                <li>Attaches the policy (#1) to the role (#2).</li>
+                <li>Attaches a standard AWS policy (to the role #2) that grants read-only access to all ECR
+                    repositories within the account
+                </li>
+            </ol>
+
+            <p>By doing this we have created a role (that can be assigned to an EC2 instance during startup).<br/>
+                The instance will then have permission to download docker containers from an ECR repository and
+                "acquire" an EIP</p>
+
+            <h3>EC2</h3>
+
+            <p>We need to allocate an Elastic IP address, create a file: ec2.tf<br/>
+                Containing:</p>
+
+            <code>
+                resource "aws_eip" "stratospike_web" {<br/>
+                &nbsp;&nbsp;vpc = true<br/>
+                }
+            </code>
+
+            <p>This allocates an Elastic IP (a public IP) that can be bound to an particular instance later.<br>
+                The argument <strong>vpc = true</strong> specifies that this IP will be used with a "VPC" instance.
+                The alternative (EC2 Classic) can only be used with older AWS accounts.
+            </p>
+
+            <h4>Querying the Infrastructure</h4>
+
+            <p>For this example we are using an existing VPC (instead of defining a new one).<br/>
+                Therefore we need to query the infrastructure to find the VPC and its subnets:
+            </p>
+
+            <code>
+                data "aws_vpc" "default" {<br/>
+                &nbsp;&nbsp;cidr_block = "172.30.0.0/16"<br/>
+                }<br/>
+                <br/>
+                data "aws_subnet_ids" "default_subnets" {<br/>
+                &nbsp;&nbsp;vpc_id = "${data.aws_vpc.default.id}"<br/>
+                }
+            </code>
+
+            <p>Note the use of "data" sources, instead of "resources". Data sources simply query the existing
+                infrastructure (without changing it), hence the returned data can be used in other instructions.<br/>
+                In this case we are identifying the VPC we want, by looking for its CIDR (172.30.0.0/16).<br/>
+                Once we have the VPC we can lookup all the subnets attached to it, using the VPC's "id".
+            </p>
+
+            <h4>Networking</h4>
+
+            <p>Now we need to define the "firewall" rules for our instance:</p>
+
+            <ul>
+                <li>Allow inbound TCP traffic on ports 22 (SSH) and 80 (HTTP)</li>
+                <li>Allow all outbound traffic</li>
+            </ul>
+
+            <code>
+                resource "aws_security_group" "vpc_web_server" {<br/>
+                &nbsp;&nbsp;name = "vpc-webserver"<br/>
+                &nbsp;&nbsp;description = "Allow inbound web traffic"<br/>
+                <br/>
+                &nbsp;&nbsp;vpc_id = "${data.aws_vpc.default.id}"<br/>
+                <br/>
+                &nbsp;&nbsp;ingress {<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;from_port = 22<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;to_port = 22<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;protocol = "tcp"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;cidr_blocks = [<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"0.0.0.0/0"]<br/>
+                &nbsp;&nbsp;}<br/>
+                &nbsp;&nbsp;ingress {<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;from_port = 80<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;to_port = 80<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;protocol = "tcp"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;cidr_blocks = [<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"0.0.0.0/0"]<br/>
+                &nbsp;&nbsp;}<br/>
+                <br/>
+                &nbsp;&nbsp;egress {<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;from_port = 0<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;to_port = 0<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;protocol = "-1"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;cidr_blocks = [<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"0.0.0.0/0"]<br/>
+                &nbsp;&nbsp;}<br/>
+                }
+            </code>
+
+            <p>We have not yet assigned this security group to a particular instance,
+                we are setting it up so that we can use it later. Note that the security group is specific to a
+                particular VPC, therefore we needed to use the VPC id, queried in the previous step.</p>
+
+            <h4>Boilerplate</h4>
+
+            <p>IAM instance profiles are currently just a container around an IAM role, its possible that in future the
+                functionality may be expanded, however for now its just boilerplate.<br/>
+                Every role used for launching an instance, must be contained in an instance profile:</p>
+            <code>
+                resource "aws_iam_instance_profile" "stratospike_web" {<br/>
+                &nbsp;&nbsp;name = "stratospike-web"<br/>
+                &nbsp;&nbsp;role = "${aws_iam_role.stratospike_web.name}"<br/>
+                }
+            </code>
+
+            <h4>Launch Configuration</h4>
+
+            <p>With all the pieces in place we can define the launch configuration, which will define:</p>
+
+            <ul>
+                <li>A prefix to name the machines</li>
+                <li>The AMI (Linux Distro) to run.</li>
+                <li>The size of the machine</li>
+                <li>The SSH key pair we will use</li>
+                <li>The instance profile (hence the role/permissions assigned to the instance)</li>
+                <li>The firewall/security group.</li>
+                <li>If we want to allocate a public IP address to the machine.</li>
+                <li>The userdata</li>
+            </ul>
+
+            <code>
+                resource "aws_launch_configuration" "stratospike_web" {<br/>
+                &nbsp;&nbsp;name_prefix = "stratospike-web-"<br/>
+                &nbsp;&nbsp;image_id = "ami-19c0de60"<br/>
+                &nbsp;&nbsp;instance_type = "t2.nano"<br/>
+                &nbsp;&nbsp;key_name = "stratospike-primary"<br/>
+                &nbsp;&nbsp;iam_instance_profile = "${aws_iam_instance_profile.stratospike_web.name}"<br/>
+                &nbsp;&nbsp;security_groups = ["${aws_security_group.vpc_web_server.id}"]<br/>
+                &nbsp;&nbsp;associate_public_ip_address = true<br/>
+                &nbsp;&nbsp;user_data = "${data.template_file.web_cloud_config.rendered}"<br/>
+                <br/>
+                &nbsp;&nbsp;lifecycle {<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;create_before_destroy = true<br/>
+                &nbsp;&nbsp;}<br/>
+                }
+            </code>
+
+            <p>The lifecycle (create_before_destroy) is a Terraform workaround that is needed to be able to "update" the
+                configuration. It causes terraform to create a new configuration then update any dependencies before
+                deleting the old configuration.</p>
+
+
+            <h4>Hardware Failure</h4>
+
+            <p>In a cloud environment hardware failure is inevitable. Instead of launching a single instance we launch
+                the instance inside an AWS Auto Scaling Group, with a desired capacity of 1:</p>
+
+            <code>
+                resource "aws_autoscaling_group" "stratospike-web" {<br/>
+                &nbsp;&nbsp;name_prefix = "stratospike-web-"<br/>
+                &nbsp;&nbsp;launch_configuration = "${aws_launch_configuration.stratospike_web.name}"<br/>
+                &nbsp;&nbsp;vpc_zone_identifier = ["${data.aws_subnet_ids.default_subnets.ids}"]<br/>
+                &nbsp;&nbsp;min_size = 0<br/>
+                &nbsp;&nbsp;desired_capacity = 1<br/>
+                &nbsp;&nbsp;max_size = 1<br/>
+                <br/>
+                &nbsp;&nbsp;lifecycle {<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;create_before_destroy = true<br/>
+                &nbsp;&nbsp;}<br/>
+                }
+            </code>
+
+            <p>If a hardware failure occurs AWS will detect the failure terminate the old machine and replace it
+                automatically. Additional heath-checks will be added in future.</p>
+
+            <h4>User Data</h4>
+
+            <a name="template"></a>
+            <p>The launch configuration referenced some user data, it is generated from a template file
+                (web-cloud-config):</p>
+
+            <code>
+                data "template_file" "web_cloud_config" {<br/>
+                &nbsp;&nbsp;template = "${file("${path.module}/web-cloud-config")}"<br/>
+                <br/>
+                &nbsp;&nbsp;vars {<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;repository_url = "${aws_ecr_repository.stratospike_web.repository_url}"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;allocation_id = "${aws_eip.stratospike_web.id}"<br/>
+                &nbsp;&nbsp;}<br/>
+                }
+            </code>
+
+            <p>The template is merged with the variables defined in vars section, the values of the variables are
+                retrieved from Terraform. In this case we want the instance to know:</p>
+            <ul>
+                <li>The repository URL for the Docker image it should download</li>
+                <li>The allocation id of elastic IP address it should associate to.</li>
+            </ul>
+
+            <p>The remaining contents of the template will be covered in the CoreOS section.</p>
+
+            <a href="/example/coreos.shtml" class="button">Continue</a>
+
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->

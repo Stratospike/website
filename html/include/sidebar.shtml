@@ -1,0 +1,22 @@
+<aside class="sidebar">
+    <ul>
+        <li>
+            <h4>Example Trail</h4>
+            <ul>
+                <li><a href="/example/overview.shtml" title="Overview">Overview</a></li>
+                <li><a href="/example/docker.shtml" title="">Docker Container</a></li>
+                <li><a href="/example/aws-local-osx.shtml" title="Setup OSX">AWS Development Environment</a></li>
+                <li><a href="/example/terraform.shtml" title="Terraform">Terraforming</a></li>
+                <li><a href="/example/coreos.shtml" title="Cloud Config">Configuring CoreOS</a></li>
+            </ul>
+
+            <h4>Helpful Links</h4>
+            <ul>
+                <li><a href="https://docs.docker.com/engine/reference/builder"
+                       title="Dockerfiles">Dockerfile Reference</a></li>
+                <li><a href="https://httpd.apache.org/docs/current/howto/ssi.html"
+                       title="SSI">Apache Server Side Includes</a></li>
+            </ul>
+        </li>
+    </ul>
+</aside>

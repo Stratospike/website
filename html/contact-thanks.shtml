@@ -1,0 +1,20 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_contact.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+
+
+            <h3>Thanks</h3>
+
+            <p>Thanks for contacting us, we will get back to you shortly.</p>
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->

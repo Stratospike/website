@@ -1,0 +1,9 @@
+<nav>
+    <div class="width">
+        <ul>
+            <li class="start"><a href="/">Home</a></li>
+            <li class="selected"><a href="/example.shtml">Example</a></li>
+            <li class="end"><a href="/contact.shtml">Contact</a></li>
+        </ul>
+    </div>
+</nav>
