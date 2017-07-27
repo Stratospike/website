@@ -1,0 +1,26 @@
+#cloud-config
+coreos:
+  units:
+    - name: "web.service"
+      command: "start"
+      content: |
+        [Unit]
+        Description=Web Server Service
+        After=docker.service
+
+        [Service]
+        TimeoutStartSec=300
+        ExecStartPre=/tmp/init-web
+        ExecStart=/usr/bin/docker run --rm -p 80:80 --name stratospike-web ${repository_url}
+write_files:
+  - path: "/tmp/init-web"
+    permissions: "0755"
+    owner: "root"
+    content: |
+      #!/bin/bash -e
+      REGION=`curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | grep -Eo "[^0-9]+[0-9]+"`
+      INSTANCE_ID=`curl -s http://169.254.169.254/latest/meta-data/instance-id`
+      docker pull mesosphere/aws-cli
+      `docker run --rm mesosphere/aws-cli ecr get-login --region=$REGION --no-include-email`
+      docker pull ${repository_url}
+      docker run --rm -t  mesosphere/aws-cli ec2 associate-address --region=$REGION --allow-reassociation --allocation-id=${allocation_id} --instance-id=$INSTANCE_ID
