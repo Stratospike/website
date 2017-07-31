@@ -1,5 +1,10 @@
 #cloud-config
 coreos:
+  update:
+    reboot-strategy: "reboot"
+  locksmith:
+    window-start: Thu 11:30
+    window-length: 1h
   units:
     - name: "web.service"
       command: "start"
