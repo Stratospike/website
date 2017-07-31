@@ -76,17 +76,30 @@
                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After=web.service<br/>
             </code>
 
-            <p>The <strong>/tmp/init-web</strong> script, is executed first. Then both the Docker (Apache) web container
-                and the <strong>/tmp/init-eip</strong> script are executed at (approximately) the same time.</p>
-
-            <p>The way this works is that, we are leveraging the fact the the <strong>/tmp/init-web</strong> script
-                is defined as "ExecStartPre" therefore the <strong>web.service</strong>, has not started until this
-                script has completed.
-            </p>
+            <p>With this extra directive System D will execute:</p>
+            <ul>
+                <li>The <strong>/tmp/init-web</strong> script.
+                    <ul>
+                        <li>
+                            Because this script is specified as an "ExecStartPre" step the service will not be
+                            considered to have started until this script completes.
+                        </li>
+                    </ul>
+                </li>
+                <li>Then the main <strong>web.service</strong> container (Apache) is started</li>
+                <li>Finally, the <strong>/tmp/init-eip</strong> script will be executed.
+                    <ul>
+                        <li>
+                            Since there is no health check defined for the Apache process,
+                            the eip.service will start in parallel with the main Apache container.
+                        </li>
+                    </ul>
+                </li>
+            </ul>
 
             <h4>One Shot Services</h4>
 
-            <p>The AWS request to associate the EIP with the instance, is not a service - the Docker container exists
+            <p>The AWS request to associate the EIP with the instance, is not a service - the Docker container exits
                 after making the request.<br/>
                 Therefore, we don't want System D to keep trying to "re-start" the service by continuously launching the
                 Docker container, so we configure the service as a "one-shot":</p>
