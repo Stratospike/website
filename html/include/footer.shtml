@@ -1,8 +1,8 @@
 <footer>
     <div class="footer-content width">
         <ul>
-            <li><h4>Docker</h4></li>
-            <li><a href="/example/docker.shtml">Example</a></li>
+            <li><h4>DevOps</h4></li>
+            <li><a href="/tip/devops-refresh.shtml">Content Refresh</a></li>
         </ul>
 
         <ul>

@@ -148,7 +148,7 @@
             <p>CAUTION: Although git only checkouts out the specified files, it downloads the entire repository, which
                 may bloat the Docker images.</p>
 
-            <h4>Update on Startup</h4>
+            <h4>Update on Startup<a id="update-content"></a></h4>
 
             <p>The base Docker httpd image contains a script that is executed during container startup.
                 We add our own script, that performs the git pull and exec's the default script:</p>

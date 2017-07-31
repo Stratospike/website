@@ -9,7 +9,17 @@
                 <li><a href="/example/terraform.shtml" title="Terraform">Terraforming</a></li>
                 <li><a href="/example/coreos.shtml" title="Cloud Config">Configuring CoreOS</a></li>
             </ul>
+        </li>
 
+        <li>
+            <h4>Tips</h4>
+            <ul>
+                <li><a href="/tip/devops-refresh.shtml" title="">Automatic Content Refresh</a></li>
+                <li><a href="/tip/coreos-unit-dependency.shtml" title="">CoreOS Unit Dependencies</a></li>
+            </ul>
+        </li>
+
+        <li>
             <h4>Helpful Links</h4>
             <ul>
                 <li><a href="https://docs.docker.com/engine/reference/builder"

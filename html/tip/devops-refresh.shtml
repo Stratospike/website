@@ -1,0 +1,60 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_none.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+            <h2>Website Content Refresh</h2>
+
+            <p>For a simple website such as this, it is unrealistic to perform a rebuild of the docker image simply to
+                push new content. The initial setup of the docker image contained a
+                <a href="/example/docker.shtml#update-content">script</a>, which was used to refresh the content
+                whenever the docker images was started/re-started.</p>
+
+            <p>We can leverage the same approach to refresh the content while the container is running.<br/>
+                First we to create a simple CGI script:</p>
+
+            <code>
+                #!/bin/bash<br/>
+                <br/>
+                cat &lt;&lt; EOT<br/>
+                Content-type: text/html<br/>
+                <br/>
+                &lt;html&gt;<br/>
+                &lt;head&gt;&lt;title&gt;Site Update&lt;/title&gt;&lt;/head&gt;<br/>
+                &lt;body&gt;<br/>
+                &lt;pre&gt;<br/>
+                EOT<br/>
+                <br/>
+                cd /var/www<br/>
+                /usr/bin/git pull &lt; /dev/null 2&gt;&gt; /tmp/git-pull.log<br/>
+                <br/>
+                echo "&lt;/pre&gt;&lt;/body&gt;&lt;/html&gt;"<br/>
+            </code>
+
+            <p>Which leverages Git to refresh the content of the website.</p>
+
+            <ul>
+                <li>In order to avoid the possibility of POST data being fed to git, We are reading STDIN from /dev/null
+                </li>
+                <li>Git outputs status messages to STDERR, however Apache interprets these as an error condition. So we
+                    redirect STDERR to a log file.
+                </li>
+            </ul>
+
+            <p>We place this script in the CGI bin directory and uses a GitHub <a
+                    href="https://developer.github.com/webhooks/">Webhook</a> to trigger the script.</p>
+
+            <p>Therefore we can push new content to the website by committing the change to the projects master branch
+                and then pushing the commit to GitHub.</p>
+
+
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->
