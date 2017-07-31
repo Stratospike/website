@@ -12,6 +12,7 @@ data "template_file" "web_cloud_config" {
   vars {
     repository_url = "${aws_ecr_repository.stratospike_web.repository_url}"
     allocation_id = "${aws_eip.stratospike_web.id}"
+    region = "${var.region}"
   }
 }
 
