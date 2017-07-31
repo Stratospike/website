@@ -13,6 +13,7 @@
         <ul class="endfooter">
             <li><h4>CoreOS</h4></li>
             <li><a href="/example/coreos.shtml">Example</a></li>
+            <li><a href="/tip/coreos-unit-dependency.shtml">Unit Dependencies</a></li>
         </ul>
 
         <div class="clear"></div>

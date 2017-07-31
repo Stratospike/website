@@ -1,0 +1,107 @@
+<!--#include virtual="/include/header.shtml" -->
+<!--#include virtual="/include/topnav_none.shtml" -->
+
+<div id="body" class="width">
+
+    <section id="content">
+
+        <article>
+            <h2>CoreOS Unit Dependencies</h2>
+
+            <p>There were a couple of issues with the previous CoreOS configuration:</p>
+            <ul>
+                <li>The Elastic IP was associated with the instance, before the Apache service was started.</li>
+                <li>If the EIP association failed, it prevented the Apache service from starting.</li>
+            </ul>
+
+            <p>We can use <a href="https://coreos.com/os/docs/latest/getting-started-with-systemd.html">System D</a>
+                unit dependencies to resolve these issues.<br/>
+                First, we will break out the call to associate the EIP intro a separate script:</p>
+
+            <code>
+                &nbsp;&nbsp;&nbsp;&nbsp;- path: "/tmp/init-eip"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;permissions: "0755"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;owner: "root"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content: |<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#!/bin/bash -e<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INSTANCE_ID=`curl -s
+                .../instance-id`<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;docker run --rm -t
+                mesosphere/aws-cli ec2 associate-address --region=${region} --allow-reassociation
+                --allocation-id=${allocation_id} --instance-id=$INSTANCE_ID<br/>
+            </code>
+
+            <p>Which simplifies the init-web script to:</p>
+
+            <code>
+                &nbsp;&nbsp;&nbsp;&nbsp;- path: "/tmp/init-web"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;permissions: "0755"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;owner: "root"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content: |<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#!/bin/bash -e<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;docker pull
+                mesosphere/aws-cli<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`docker run --rm
+                mesosphere/aws-cli ecr get-login --region=${region} --no-include-email`<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;docker pull
+                ${repository_url}<br/>
+            </code>
+
+            <p>Then we can add a new unit which calls the init-eip script:</p>
+
+            <code>
+                &nbsp;&nbsp;&nbsp;&nbsp;units:<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- name: "web.service"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- name: "eip.service"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;command: "start"<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content: |<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Unit]<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Description=Associates
+                Elastic IP<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After=web.service<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Service]<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type=oneshot<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ExecStart=/tmp/init-eip<br/>
+            </code>
+
+            <h4>Unit Order</h4>
+
+            <p>We don't want the instance to try to pull the Docker aws-cli tools image twice (once during the explict
+                pull and once due to the docker run of the <strong>eip.service</strong>). Therefore we need to instruct
+                System D to execute the <strong>eip.service</strong> after the <strong>web.service</strong> has started:
+            </p>
+
+            <code>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;After=web.service<br/>
+            </code>
+
+            <p>The <strong>/tmp/init-web</strong> script, is executed first. Then both the Docker (Apache) web container
+                and the <strong>/tmp/init-eip</strong> script are executed at (approximately) the same time.</p>
+
+            <p>The way this works is that, we are leveraging the fact the the <strong>/tmp/init-web</strong> script
+                is defined as "ExecStartPre" therefore the <strong>web.service</strong>, has not started until this
+                script has completed.
+            </p>
+
+            <h4>One Shot Services</h4>
+
+            <p>The AWS request to associate the EIP with the instance, is not a service - the Docker container exists
+                after making the request.<br/>
+                Therefore, we don't want System D to keep trying to "re-start" the service by continuously launching the
+                Docker container, so we configure the service as a "one-shot":</p>
+
+            <code>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type=oneshot<br/>
+            </code>
+
+            <p>With this configuration, if the service launches correctly (zero exit code), the service will only be
+                launched once.</p>
+
+        </article>
+    </section>
+    <!--#include virtual="/include/sidebar.shtml" -->
+    <div class="clear"></div>
+</div>
+
+<!--#include virtual="/include/footer.shtml" -->
