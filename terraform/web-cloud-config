@@ -12,19 +12,32 @@ coreos:
         [Unit]
         Description=Web Server Service
         After=docker.service
-
         [Service]
         TimeoutStartSec=300
         ExecStartPre=/tmp/init-web
         ExecStart=/usr/bin/docker run --rm -p 80:80 --name stratospike-web ${repository_url}
+    - name: "eip.service"
+      command: "start"
+      content: |
+        [Unit]
+        Description=Associates Elastic IP
+        After=web.service
+        [Service]
+        Type=oneshot
+        ExecStart=/tmp/init-eip
 write_files:
   - path: "/tmp/init-web"
     permissions: "0755"
     owner: "root"
     content: |
       #!/bin/bash -e
-      INSTANCE_ID=`curl -s http://169.254.169.254/latest/meta-data/instance-id`
       docker pull mesosphere/aws-cli
       `docker run --rm mesosphere/aws-cli ecr get-login --region=${region} --no-include-email`
       docker pull ${repository_url}
+  - path: "/tmp/init-eip"
+    permissions: "0755"
+    owner: "root"
+    content: |
+      #!/bin/bash -e
+      INSTANCE_ID=`curl -s http://169.254.169.254/latest/meta-data/instance-id`
       docker run --rm -t  mesosphere/aws-cli ec2 associate-address --region=${region} --allow-reassociation --allocation-id=${allocation_id} --instance-id=$INSTANCE_ID
