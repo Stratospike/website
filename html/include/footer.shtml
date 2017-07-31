@@ -1,18 +1,18 @@
 <footer>
     <div class="footer-content width">
         <ul>
-            <li><h4>Proin accumsan</h4></li>
-            <li><a href="#">Rutrum nulla a ultrices</a></li>
+            <li><h4>Docker</h4></li>
+            <li><a href="/example/docker.shtml">Example</a></li>
         </ul>
 
         <ul>
-            <li><h4>Condimentum</h4></li>
-            <li><a href="#">Curabitur sit amet tellus</a></li>
+            <li><h4>Terraform</h4></li>
+            <li><a href="/example/terraform.shtml">Example</a></li>
         </ul>
 
         <ul class="endfooter">
-            <li><h4>Suspendisse</h4></li>
-            <li><a href="#">Morbi hendrerit libero </a></li>
+            <li><h4>CoreOS</h4></li>
+            <li><a href="/example/coreos.shtml">Example</a></li>
         </ul>
 
         <div class="clear"></div>
