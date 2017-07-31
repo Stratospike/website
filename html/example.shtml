@@ -9,8 +9,8 @@
             <h2>Infrastructure as Code</h2>
 
             <p>This site has been built following the Infrastructure as Code principal. The full source for both the
-                html content and the configuration that build the site can be found
-                <a href="https://github.com/Stratospike/website">here</a> on Github.</p>
+                html content and the configuration, that was used to build the site can be found on
+                <a href="https://github.com/Stratospike/website">Github</a>.</p>
 
             <h3>AWS Account</h3>
             <p>This site runs on Amazon AWS and the instructions assume it will be deployed to AWS,<br/>
