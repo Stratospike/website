@@ -59,7 +59,7 @@ resource "aws_launch_configuration" "stratospike_web" {
   name_prefix = "stratospike-web-"
   image_id = "ami-19c0de60"
   instance_type = "t2.nano"
-  key_name = "stratospike-primary"
+  key_name = "stratospike-web-primary"
   iam_instance_profile = "${aws_iam_instance_profile.stratospike_web.name}"
   security_groups = ["${aws_security_group.vpc_web_server.id}"]
   associate_public_ip_address = true
